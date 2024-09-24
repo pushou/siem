@@ -56,7 +56,7 @@ database:
     #keyword: ""
 
     username: elastic
-    password: WsWxowsQmXyEJD1xGG8f 
+    password:  
 
   postgresql:
 

@@ -27,6 +27,7 @@ PASSWORDS_FILE=${SECRETS_DIR}/passwords.txt
 ENV_FILE=$(pwd)/.env
 IP_HOST=$(ip route get 8.8.8.8 | sed -n '/src/{s/.*src *\([^ ]*\).*/\1/p;q}')
 VERSION=8.15.1
+CERT_HOST="/usr/local/share/ca-certificates"
 
 
 #CERTS_DIR=/usr/share/elasticsearch/config/certificates
@@ -76,16 +77,19 @@ docker run --rm -it --env IP_HOST=${IP_HOST} --env ELASTIC_PASSWORD=changeme --e
           "      - localhost\n"\
           "    ip:\n"\
           "      - 127.0.0.1\n"\
+	  "      - $IP_HOST\n"\
           "  - name: es02\n"\
           "    dns:\n"\
           "      - es02\n"\
           "      - localhost\n"\
           "    ip:\n"\
           "      - 127.0.0.1\n"\
+	  "      - $IP_HOST\n"\
           "  - name: es03\n"\
           "    dns:\n"\
           "      - es03\n"\
           "      - localhost\n"\
+	  "      - $IP_HOST\n"\
           "    ip:\n"\
           "      - 127.0.0.1\n"\
           "  - name: kibana\n"\
@@ -94,9 +98,9 @@ docker run --rm -it --env IP_HOST=${IP_HOST} --env ELASTIC_PASSWORD=changeme --e
           "      - localhost\n"\
           "    ip:\n"\
           "      - 127.0.0.1\n"\
+	  "      - $IP_HOST\n"\
           "  - name: fleet\n"\
           "    dns:\n"\
-          "      - fleet\n"\
           "      - localhost\n"\
           "    ip:\n"\
           "      - 127.0.0.1\n"\
@@ -187,6 +191,10 @@ MONITORING_PASSWORD=$(docker exec --user root -it es01 bash -c './bin/elasticsea
 echo  "password monitoring ${MONITORING_PASSWORD}" 
 printf "MONITORING_PASSWORD=%q\n" "${MONITORING_PASSWORD}" >> "${ENV_FILE}"
 printf "MONITORING_PASSWORD=%q\n" "${MONITORING_PASSWORD}" >> "${PASSWORDS_FILE}"
+# 
+echo "copy du certificat de l'AC sur votre hôte";
+sudo cp ${TEMP_DIR}/ca.crt ${CERT_HOST}/ca.crt
+sudo update-ca-certificates
 
 echo "test de ES"
 make curlES

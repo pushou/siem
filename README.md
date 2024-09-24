@@ -18,3 +18,5 @@ filebeat.
 vous pouvez créez vos propres  règles suricata dans
 /var/lib/suricata/rules/local.rules= ./lib/rules/local.rules de votre dir
 
+Ce script est à utiliser sur une VM de test !!  il met à jour votre CA
+
