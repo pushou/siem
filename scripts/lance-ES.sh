@@ -5,8 +5,6 @@ if (sudo -vn && sudo -ln) 2>&1 |grep 'ne pas' > /dev/null; then
   exit 0 
 fi
 
-
-
 # nettoyage
 make clean
 
