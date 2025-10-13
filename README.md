@@ -1,5 +1,10 @@
 # environnement ELK + BEATS + EVEBOX pour l'analyse de pcap
 
+## Avant d'installer
+
+Ce script est à utiliser sur une VM de test !!  **Il met à jour votre CA**
+Le docker-compose.yml est non maintenu, merci de ne pas l'utiliser.
+
 ## Packets requis
 
 - jq
@@ -16,6 +21,46 @@ Pour le run des containers et de l'aide
 make help
 ```
 
+## Installation rapide
+
+```bash
+make es
+# ...attendez que la procédure soit terminée, les autres "containers" en ont besoin pour démarrer
+make siem
+# ...attendez que la procédure soit terminée
+make fleet
+```
+
+On peu maintenant se connecter à l'interface web d'elasic depuis l'ip ``https://ip_de_votre_machine:5601/``
+
+L'utilisateur est ``elastic``
+Le mot de passe est celui affichée lors de l'installation
+
+## Supprimer les containers
+
+```bash
+make clean
+```
+
+## Récuperer les mots de passe
+
+```bash
+make pass
+```
+
+## Composition de la stack
+
+La stack elastic comprend les éléments suivant:
+
+— Une instance d’Elasticsearch: moteur de recherche et de stockage des données qui écoute sur le port
+9200 en TLS sur votre hôte.
+— Une instance Kibana: interface web pour visualiser les données qui écoute sur le port 5601 en TLS
+sur votre hôte.
+— Une instance fleet: interface web pour gérer les agents Elastic ou Beats qui écoute sur le port 8220
+en TLS sur votre hôte.
+
+L’IPS "Suricata" est aussi installé sous forme de container et va suivre les flux réseaux de votre machine hôte. Les alertes "Suricata" sont envoyées à Elasticsearch et sont visualisables via Kibana
+
 ## Pour rendre accessible les pcaps aux containers les mettre dans ./logs/pcaps
 
 Le container suricata analyse les pcaps et alimente le fichier eve.json:
@@ -29,8 +74,3 @@ eve.json est aussi lu par le container logstash et alimente EveBox (on duplique 
 vous pouvez créez vos propres  règles suricata dans
 /var/lib/suricata/rules/local.rules= ./lib/rules/local.rules de votre dir
 
-Ce script est à utiliser sur une VM de test !!  **Il met à jour votre CA**
-
-## Note
-
-Le docker-compose.yml est non maintenu, merci de ne pas l'utiliser.
