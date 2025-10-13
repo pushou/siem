@@ -37,14 +37,16 @@ post-restart-es:
 	@echo "Redémarrage du container Elasticsearch..."
 	- docker start es01
 	@echo "Attente ES up..."
-	@until make curlES 2>&1 | grep -q 'You Know, for Search'; do sleep 5; done
+	@until curl --cacert ${CA_FILE} -s --url https://localhost:9200 -K- <<< "--user elastic:$$(source ${PASSWORDS_FILE} && echo $$ELASTIC_PASSWORD)" 2>/dev/null | grep -q "cluster_name"; do sleep 5; done
 	@echo "Elasticsearch redémarré avec succès!"
+	@echo "Les certificats et mots de passe sont conservés dans les volumes Docker."
 
 post-restart-siem:
 	@echo "Redémarrage des containers SIEM..."
 	@echo "Redémarrage de suricata..."
 	- docker start suricata
-	@echo "Mise à jour des règles Suricata..."
+	@sleep 5
+	@echo "Mise à jour des règles Suricata en arrière-plan..."
 	- docker exec suricata bash -c 'suricata-update' &
 	@echo "Redémarrage de evebox..."
 	- docker start evebox
@@ -57,25 +59,31 @@ post-restart-siem:
 	- docker start logstash
 	@echo "Redémarrage de filebeat..."
 	- docker start filebeat
-	@echo "Copie de la config suricata dans filebeat..."
-	- docker cp "${CONFIG_FILEBEAT_DIR}"/suricata.yml filebeat:/usr/share/filebeat/modules.d/suricata.yml
+	@sleep 5
+	@echo "Copie de la config suricata.yml dans filebeat..."
+	- docker cp ${CONFIG_FILEBEAT_DIR}/suricata.yml filebeat:/usr/share/filebeat/modules.d/suricata.yml
 	@echo "Redémarrage de zeek..."
 	- docker start zeek
 	@echo "Tous les containers SIEM ont été redémarrés avec succès!"
 
 post-restart-fleet:
 	@echo "Redémarrage du container Fleet..."
+	@echo "Vérification que Kibana est accessible..."
+	@until curl -k -s -XGET https://${IP_HOST}:5601/status -I 2>&1 | grep -q "200 OK"; do sleep 10; done
+	@sleep 10
 	@echo "Préparation de Fleet sur Kibana..."
 	@source ${PASSWORDS_FILE}; \
-	curl --cacert ${CA_FILE} -k -XPOST https://${IP_HOST}:5601/api/fleet/setup --header 'kbn-xsrf: true' -K- <<< "--user elastic:$$ELASTIC_PASSWORD"
-	@echo "Création de la policy Fleet Server..."
+	curl --cacert ${CA_FILE} -k -XPOST https://${IP_HOST}:5601/api/fleet/setup --header 'kbn-xsrf: true' -K- <<< "--user elastic:$$ELASTIC_PASSWORD" || true
+	@echo "Création/mise à jour de la policy Fleet Server..."
 	@source ${PASSWORDS_FILE}; \
-	curl --cacert ${CA_FILE} -k -X POST "https://${IP_HOST}:5601/api/fleet/agent_policies?sys_monitoring=true" --header 'kbn-xsrf: true' --header 'Content-Type: application/json' --data-raw '{"id":"fleet-server-policy-jmp","name":"Fleet Server policy jmp","description":"","namespace":"default","monitoring_enabled":["logs","metrics"],"has_fleet_server":true}' -K- <<< "--user elastic:$$ELASTIC_PASSWORD"
+	curl --cacert ${CA_FILE} -k -X POST "https://${IP_HOST}:5601/api/fleet/agent_policies?sys_monitoring=true" --header 'kbn-xsrf: true' --header 'Content-Type: application/json' --data-raw '{"id":"fleet-server-policy-jmp","name":"Fleet Server policy jmp","description":"","namespace":"default","monitoring_enabled":["logs","metrics"],"has_fleet_server":true}' -K- <<< "--user elastic:$$ELASTIC_PASSWORD" || true
 	@echo "Mise à jour de l'URL Fleet Server..."
 	@source ${PASSWORDS_FILE}; \
 	curl --cacert ${CA_FILE} -k -XPUT "https://${IP_HOST}:5601/api/fleet/settings" --header 'kbn-xsrf: true' --header 'Content-Type: application/json' --data-raw '{"fleet_server_hosts":["https://${IP_HOST}:8220","https://${IP_HOST}:8220"]}' -K- <<< "--user elastic:$$ELASTIC_PASSWORD"
+	@echo "Utilisation du Fleet Token existant depuis passwords.txt"
 	@echo "Redémarrage du container fleet..."
 	- docker start fleet
+	@sleep 10
 	@echo "Fleet redémarré avec succès!"
 
 help:
