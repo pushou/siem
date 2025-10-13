@@ -69,7 +69,7 @@ post-restart-siem:
 post-restart-fleet:
 	@echo "Redémarrage du container Fleet..."
 	@echo "Vérification que Kibana est accessible..."
-	@until curl -k -s -XGET https://${IP_HOST}:5601/status -I 2>&1 | grep -q "200 OK"; do sleep 10; done
+	@until curl -k -s -XGET https://${IP_HOST}:5601/status -I 2>&1 | grep -qv "init"; do sleep 10; done
 	@sleep 10
 	@echo "Préparation de Fleet sur Kibana..."
 	@source ${PASSWORDS_FILE}; \
@@ -176,7 +176,7 @@ stop:
 	- docker stop filebeat
 	- docker stop zeek
 
-pass: 
+pass:
 	${SCRIPTS_DIR}/print_password.sh
 
 all: clean es siem pass
