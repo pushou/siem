@@ -137,7 +137,7 @@ alert tcp any any -> any [25,587] (msg:"TGI HUNT Suspicious x-mailer Blat"; flow
 
 alert tcp any any -> any any (msg:"TGI HUNT netsh firewall"; flow:established; content:"netsh firewall"; threshold:type limit, track by_src, seconds 60, count 1; classtype:bad-unknown; sid:2610330; rev:1;)
 
-alert ip any any -> any any (msg:"TGI HUNT netsh advfirewall"; flow:established; content:"netsh advfirewall"; content:!"This example shows  how to disable Wmi fixed port"; distance:-730; within: 50; content:!"from administrator command prompt window"; distance:22; within:45; threshold:type limit, track by_src, seconds 60, count 1; sid:2610332; rev:1;)
+alert ip any any -> any any (msg:"TGI HUNT netsh advfirewall"; flow:established; content:"netsh advfirewall"; content:!"This example shows  how to disable Wmi fixed port"; distance:-730; within: 50; content:!"from administrator command prompt window"; distance:22; within:45; threshold:type limit, track by_src, seconds 60, count 1; classtype:bad-unknown; sid:2610332; rev:1;)
 
 alert tcp any any -> any any (msg:"TGI HUNT WMIC Prompt"; flow:established; content:"wmic|3a|root|5c|cli>"; threshold:type limit, track by_src, seconds 60, count 1; classtype:bad-unknown; sid:2610336; rev:1;)
 
@@ -370,9 +370,9 @@ alert http any any -> any any (msg:"TGI HUNT CS4 Default User-Agent"; flow:estab
 
 alert http $HOME_NET any -> $EXTERNAL_NET any (msg:"TGI HUNT Possible Excel Template Injection"; flow:to_server,established; content:".dotm?raw=true"; http_uri; fast_pattern; reference:url,twitter.com/jstrosch/status/1267471477458288642; classtype:trojan-activity; sid:2610600; rev:1;)
 
-alert http $EXTERNAL_NET any -> $HOME_NET any (msg:"TGI HUNT Unencrypted HTTP Authorization Header Inbound"; flow:established,to_server; http.header; content:"Authorization|3a 20|Bearer"; classtype:bad-unknown; sid:2610604; rev:1;)
+alert http $EXTERNAL_NET any -> $HOME_NET any (msg:"TGI HUNT Unencrypted HTTP Authorization Header Inbound"; flow:established,to_server; http.header; content:"Authorization|3a 20|Basic"; classtype:bad-unknown; sid:2610604; rev:1;)
 
-alert http $HOME_NET any -> $EXTERNAL_NET any (msg:"TGI HUNT Unencrypted HTTP Authorization Header Outbound"; flow:established,to_server; http.header; content:"Authorization|3a 20|Bearer"; classtype:bad-unknown; sid:2610608; rev:1;)
+alert http $HOME_NET any -> $EXTERNAL_NET any (msg:"TGI HUNT Unencrypted HTTP Authorization Header Outbound"; flow:established,to_server; http.header; content:"Authorization|3a 20|Basic"; classtype:bad-unknown; sid:2610608; rev:1;)
 
 alert ftp any any -> any any (msg:"TGI HUNT Possible FTP Exfil Flowbit Set"; flow:established,to_server; content:"/incoming/"; flowbits:set,ftp_exfil; flowbits:noalert; classtype:bad-unknown; sid:2610612; rev:1;)
 
@@ -551,3 +551,22 @@ alert http $EXTERNAL_NET any -> $HOME_NET any (msg:"TGI HUNT Suspicious String I
 alert http $EXTERNAL_NET any -> $HOME_NET any (msg:"TGI HUNT Suspicious String Inbound (obfuscated vbs)"; flow:established; content:"Replace(Replace(Replace("; fast_pattern; nocase; content:"CreateObject"; nocase; reference:url,github.com/ScorpionesLabs/DVS/blob/b986f33dbf2b997455350233dc47b863dcac1a75/DVS.psm1#L4291C1-L4292C1; classtype:bad-unknown; sid:2610865; rev:1;)
 
 alert http $EXTERNAL_NET any -> $HOME_NET any (msg:"TGI HUNT Suspicious String Inbound (Branchlock obfuscator)"; flow:established; content:"Obfuscated using the Branchlock obfuscator for java"; fast_pattern; reference:url,www.fortinet.com/blog/threat-research/vcurms-a-simple-and-functional-weapon; classtype:bad-unknown; sid:2610866; rev:1;)
+
+alert tcp any any -> $HOME_NET any (msg:"TGI HUNT NTLM Empty Password Hash Observed"; flow:established; content:"aad3b435b51404eeaad3b435b51404ee"; reference:url,travisgreen.net/updates/20240123; classtype:bad-unknown; sid:2610867; rev:1;)
+
+alert http $EXTERNAL_NET any -> $HOME_NET any (msg:"TGI HUNT Suspicious String Inbound (Pyarmor file artifacts)"; flow:established; content:"# Pyarmor"; content:"from pyarmor_runtime_"; distance:0; fast_pattern; reference:url,malware.news/t/unpacking-pyarmor-v8-scripts/91006; classtype:bad-unknown; sid:2610868; rev:1;)
+
+alert http $HOME_NET any -> any any (msg:"TGI HUNT Malicious Chunk-Proxy Webshell Artifacts in HTTP Response"; flow:established,to_client; http.response_header; content:"status|3a 20|"; pcre:"/^(?:close|successfully)/R"; threshold:type limit, track by_src, seconds 60, count 1; reference:url,travisgreen.net/updates/20240123; classtype:bad-unknown; sid:2610869; rev:1;)
+
+alert tcp any any -> $HOME_NET any (msg:"TGI HUNT Known Malicious Etherium Address Observed"; flow:established; content:"0xfe5df6Aa09A8cd90C86b7aa32a3086AfF8bb79f9"; reference:url,trac-labs.com/dont-ghost-the-socgholish-ghostweaver-backdoor-574154dd9983; classtype:bad-unknown; sid:2610870; rev:1;)
+
+alert tcp any any -> $HOME_NET any (msg:"TGI HUNT Known Malicious Bech32 Bitcoin Address Observed"; flow:established; content:"bc1qvae6tdt2uf45u38cu8pzxlc63esxut0s5ty2rm"; reference:url,trac-labs.com/dont-ghost-the-socgholish-ghostweaver-backdoor-574154dd9983; classtype:bad-unknown; sid:2610871; rev:1;)
+
+alert tcp any any -> $HOME_NET any (msg:"TGI HUNT Known Malicious Legacy Bitcoin Address Observed"; flow:established; content:"1H9YhdJbj5LYmoA9VU4fDonkbV37KTuVeJ"; reference:url,trac-labs.com/dont-ghost-the-socgholish-ghostweaver-backdoor-574154dd9983; classtype:bad-unknown; sid:2610872; rev:1;)
+
+alert tcp any any -> $HOME_NET any (msg:"TGI HUNT Reversed B64 Encoded PE File Header Observed"; flow:established; content:"ACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAgLAA8//AAAAEAAAAMAAQqVT"; classtype:bad-unknown; sid:2610873; rev:1;)
+
+alert http any any -> $HOME_NET any (msg:"TGI HUNT B64 Encoded PE File in HTTP response with BEGIN CERTIFICATE"; flow:established; http.response_body; content:"-----BEGIN CERTIFICATE-----"; fast_pattern; content:"TVqQAAMAAAA"; distance:0; within:16; classtype:bad-unknown; sid:2610874; rev:1;)
+
+# indows\system32\ in b64, seen in RAT pw exfil via b64 POST
+alert tcp any any -> any any (msg:"TGI HUNT B64 Encoded Windows System Path"; flow:established; http.response_body; content:"dpbmRvd3Ncc3lzdGVtMzJc"; fast_pattern; classtype:bad-unknown; sid:2610875; rev:1;)

@@ -13,7 +13,7 @@ ETC_DIR=$PARENT_DIR/etc
 LOGS_DIR=$PARENT_DIR/logs
 LIB_SURICATA_DIR=$PARENT_DIR/lib
 IP_HOST=$(ip route get 8.8.8.8 | sed -n '/src/{s/.*src *\([^ ]*\).*/\1/p;q}')
-VERSION=8.15.1
+VERSION=9.1.5
 
 echo "TEMP_DIR $TEMP_DIR"
 echo "CA_FILE $CA_FILE"

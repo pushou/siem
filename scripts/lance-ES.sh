@@ -24,7 +24,7 @@ CONFIG_DIR=$(pwd)/config
 PASSWORDS_FILE=${SECRETS_DIR}/passwords.txt
 ENV_FILE=$(pwd)/.env
 IP_HOST=$(ip route get 8.8.8.8 | sed -n '/src/{s/.*src *\([^ ]*\).*/\1/p;q}')
-VERSION=8.15.1
+VERSION=9.1.5
 CERT_HOST="/usr/local/share/ca-certificates"
 
 
