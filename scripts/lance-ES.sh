@@ -107,7 +107,7 @@ docker run --rm -it --env IP_HOST=${IP_HOST} --env ELASTIC_PASSWORD=changeme --e
           bin/elasticsearch-certutil cert --silent --pem -out config/certs/certs.zip --in config/certs/instances.yml --ca-cert config/certs/ca/ca.crt --ca-key config/certs/ca/ca.key;
           unzip config/certs/certs.zip -d config/certs;
         fi;
-	openssl pkcs12 -export -in config/certs/ca/ca.crt -inkey config/certs/ca/ca.key -out certificate.p12  -passin pass: -passout pass:;
+	#openssl pkcs12 -export -in config/certs/ca/ca.crt -inkey config/certs/ca/ca.key -out certificate.p12  -passin pass: -passout pass:;
         echo "Setting file permissions"
         chown -R root:root config/certs;
         find . -type d -exec chmod 750 \{\} \;;
