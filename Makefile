@@ -33,6 +33,62 @@ siem:
 fleet:
 	${SCRIPTS_DIR}/lance-fleet.sh
 
+post-restart-es:
+	@echo "Redémarrage du container Elasticsearch..."
+	- docker start es01
+	@echo "Attente ES up..."
+	@until curl --cacert ${CA_FILE} -s --url https://localhost:9200 -K- <<< "--user elastic:$$(source ${PASSWORDS_FILE} && echo $$ELASTIC_PASSWORD)" 2>/dev/null | grep -q "cluster_name"; do sleep 5; done
+	@echo "Elasticsearch redémarré avec succès!"
+	@echo "Les certificats et mots de passe sont conservés dans les volumes Docker."
+
+post-restart-siem:
+	@echo "Redémarrage des containers SIEM..."
+	@echo "Redémarrage de suricata..."
+	- docker start suricata
+	@sleep 5
+	@echo "Mise à jour des règles Suricata en arrière-plan..."
+	- docker exec suricata bash -c 'suricata-update' &
+	@echo "Redémarrage de evebox..."
+	- docker start evebox
+	@echo "Redémarrage de Kibana..."
+	- docker start kibana
+	@echo "Attente Kibana up..."
+	@until curl -k -s -XGET https://${IP_HOST}:5601/status -I 2>&1 | grep -qv "init"; do sleep 10; done
+	@sleep 30
+	@echo "Redémarrage de logstash..."
+	- docker start logstash
+	@echo "Redémarrage de filebeat..."
+	- docker start filebeat
+	@sleep 5
+	@echo "Copie de la config suricata.yml dans filebeat..."
+	- docker cp ${CONFIG_FILEBEAT_DIR}/suricata.yml filebeat:/usr/share/filebeat/modules.d/suricata.yml
+	@echo "Redémarrage de zeek..."
+	- docker start zeek
+	@sleep 5
+	@echo "Réinstallation des packets dans zeek...(peut prendre plusieurs minutes)"
+	- docker exec -it zeek /bin/bash -c 'apt update && apt -y install python3 vim cmake build-essential python3-pip git curl wget libpcap-dev && pip3 install GitPython semantic-version'
+	@echo "Tous les containers SIEM ont été redémarrés avec succès!"
+
+post-restart-fleet:
+	@echo "Redémarrage du container Fleet..."
+	@echo "Vérification que Kibana est accessible..."
+	@until curl -k -s -XGET https://${IP_HOST}:5601/status -I 2>&1 | grep -q "200 OK"; do sleep 10; done
+	@sleep 10
+	@echo "Préparation de Fleet sur Kibana..."
+	@source ${PASSWORDS_FILE}; \
+	curl --cacert ${CA_FILE} -k -XPOST https://${IP_HOST}:5601/api/fleet/setup --header 'kbn-xsrf: true' -K- <<< "--user elastic:$$ELASTIC_PASSWORD" || true
+	@echo "Création/mise à jour de la policy Fleet Server..."
+	@source ${PASSWORDS_FILE}; \
+	curl --cacert ${CA_FILE} -k -X POST "https://${IP_HOST}:5601/api/fleet/agent_policies?sys_monitoring=true" --header 'kbn-xsrf: true' --header 'Content-Type: application/json' --data-raw '{"id":"fleet-server-policy-jmp","name":"Fleet Server policy jmp","description":"","namespace":"default","monitoring_enabled":["logs","metrics"],"has_fleet_server":true}' -K- <<< "--user elastic:$$ELASTIC_PASSWORD" || true
+	@echo "Mise à jour de l'URL Fleet Server..."
+	@source ${PASSWORDS_FILE}; \
+	curl --cacert ${CA_FILE} -k -XPUT "https://${IP_HOST}:5601/api/fleet/settings" --header 'kbn-xsrf: true' --header 'Content-Type: application/json' --data-raw '{"fleet_server_hosts":["https://${IP_HOST}:8220","https://${IP_HOST}:8220"]}' -K- <<< "--user elastic:$$ELASTIC_PASSWORD"
+	@echo "Utilisation du Fleet Token existant depuis passwords.txt"
+	@echo "Redémarrage du container fleet..."
+	- docker start fleet
+	@sleep 10
+	@echo "Fleet redémarré avec succès!"
+
 help:
 	@echo "---------------HELP-----------------"
 	@echo "Pour Initialiser un container ES et "
@@ -57,6 +113,11 @@ help:
 	@echo "make fgprint pour afficher le fingerprint de la CA"
 	@echo "------------------------------------"
 	@echo "make prca  pour afficher la config ca pour fleet"
+	@echo "------------------------------------"
+	@echo "APRES REDEMARRAGE DE L'HOTE:"
+	@echo "make post-restart-es pour redémarrer ES"
+	@echo "make post-restart-siem pour redémarrer la stack SIEM"
+	@echo "make post-restart-fleet pour redémarrer Fleet"
 	@echo "------------------------------------"
 	@echo "régénérés après chaque make es" 
 	@echo "ES https://IP_HOTE:9200"
@@ -117,14 +178,6 @@ stop:
 	- docker stop evebox
 	- docker stop filebeat
 	- docker stop zeek
-#start:
-#	- docker start suricata
-#	- docker start kibana
-#	- docker start logstash
-#	- docker start evebox
-#	- docker start filebeat
-#	- docker start zeek
-
 
 pass: 
 	${SCRIPTS_DIR}/print_password.sh
