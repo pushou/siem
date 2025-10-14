@@ -4,6 +4,7 @@
 
 Ce script est à utiliser sur une VM de test !!  **Il met à jour votre CA**
 Le docker-compose.yml est non maintenu, merci de ne pas l'utiliser.
+Après un restart d'un containeur, **la configuration est perdue**
 
 ## Packets requis
 
@@ -48,6 +49,16 @@ make clean
 make pass
 ```
 
+## Après redemarrage
+
+```bash
+make post-restart-es
+# ...attendez que la procédure soit terminée
+make post-restart-siem
+# ...attendez que la procédure soit terminée
+make post-restart-fleet
+```
+
 ## Composition de la stack
 
 La stack elastic comprend les éléments suivant:
@@ -73,4 +84,3 @@ eve.json est automatiquement lu par le container filebeat et alimente Elastic-se
 eve.json est aussi lu par le container logstash et alimente EveBox (on duplique les enregistrements mais EveBox n'arrive pas à lire les entrées générées par filebeat.)
 vous pouvez créez vos propres  règles suricata dans
 /var/lib/suricata/rules/local.rules= ./lib/rules/local.rules de votre dir
-

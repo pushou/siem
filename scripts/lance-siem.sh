@@ -88,13 +88,13 @@ cp $KIBANA_CONFIG_TEMPLATE $KIBANA_CONFIG_FILE
 printf "%s\n" "kibana file:  ${KIBANA_CONFIG_FILE}"
 
 ## Pour kibana il faut aussi renseigner le fichier de config avec le nouveau mot de passe
-echo "elasticsearch.password: ${KIBANA_PASSWORD}" >> ${KIBANA_CONFIG_FILE}
+echo "elasticsearch.password: '${KIBANA_PASSWORD}'" >> ${KIBANA_CONFIG_FILE}
 
 # supression d'un ^M dans le fichier config de Kibana
 sed -i 's/\r//g' ${KIBANA_CONFIG_FILE}
 
 
-docker run   -d --name kibana --network=elasticsearch --volume='certs:/usr/share/kibana/config/certs' -v ${CONFIG_DIR}:/usr/share/kibana/config --publish=${IP_HOST}:5601:5601 --env ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=/usr/share/kibana/config/certs/ca/ca.crt --env ELASTICSEARCH_HOSTS='https://es01:9200' --env ELASTICSEARCH_USERNAME=kibana_system  docker.elastic.co/kibana/kibana:${VERSION}
+docker run -d --name kibana --network=elasticsearch --volume='certs:/usr/share/kibana/config/certs' -v ${CONFIG_DIR}:/usr/share/kibana/config --publish=${IP_HOST}:5601:5601 --env ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=/usr/share/kibana/config/certs/ca/ca.crt --env ELASTICSEARCH_HOSTS='https://es01:9200' --env ELASTICSEARCH_USERNAME=kibana_system  docker.elastic.co/kibana/kibana:${VERSION}
 
 #docker run -d \
 #        --name kibana \
@@ -111,7 +111,7 @@ docker run   -d --name kibana --network=elasticsearch --volume='certs:/usr/share
 #	--env SERVER_SSL_CERTIFICATEAUTHORITIES=/usr/share/kibana/config/certs/ca/ca.crt \
 #       	  docker.elastic.co/kibana/kibana:${VERSION}
 
-echo "Attente Kibana up...";
+echo "Attente Kibana up (peut prendre quelques minutes)...";
 until curl -k -s -XGET https://${IP_HOST}:5601/status -I 2>&1 | grep -qv "init"; do sleep 10; done;
 sleep 60
 
@@ -124,10 +124,10 @@ echo "lancement de logstash"
 sed "s/ELASTIC_PASSWORD/${ELASTIC_PASSWORD}/g" ${TEMPLATE_DIR}/logstash.conf.template > ${CONFIG_DIR}/pipeline/logstash.conf
 
 sed -i 's/\r//g' ${CONFIG_DIR}/pipeline/logstash.conf
+chmod 644 ${TEMP_DIR}/ca.crt
 
-
-
-docker run -d --rm --name logstash -e PUID=$(id -u)  -e PGID=$(id -g) --env ELASTIC_USERNAME=logstash_system --env ELASTIC_PASSWORD=${LOGSTASH_PASSWORD}   -e XPACK_MONITORING_ENABLED=false -it --rm --net=elasticsearch  --volume="${LOGS_DIR}:/var/log/suricata" -v${TEMP_DIR}/ca.crt:/usr/share/logstash/config/ca.crt -v ${CONFIG_DIR}/pipeline/:/usr/share/logstash/pipeline/ docker.elastic.co/logstash/logstash:${VERSION} 
+#docker run -d --rm --name logstash -e PUID=$(id -u)  -e PGID=$(id -g) --env ELASTIC_USERNAME=logstash_system --env ELASTIC_PASSWORD=${LOGSTASH_PASSWORD}   -e XPACK_MONITORING_ENABLED=false -it --rm --net=elasticsearch  --volume="${LOGS_DIR}:/var/log/suricata" -v${TEMP_DIR}/ca.crt:/usr/share/logstash/config/ca.crt -v ${CONFIG_DIR}/pipeline/:/usr/share/logstash/pipeline/ docker.elastic.co/logstash/logstash:${VERSION} 
+docker run -d --name logstash -e PUID=$(id -u)  -e PGID=$(id -g) --env ELASTIC_USERNAME=logstash_system --env ELASTIC_PASSWORD="${LOGSTASH_PASSWORD}"   -e XPACK_MONITORING_ENABLED=false -it --net=elasticsearch  --volume="${LOGS_DIR}:/var/log/suricata" -v${TEMP_DIR}/ca.crt:/usr/share/logstash/config/ca.crt -v ${CONFIG_DIR}/pipeline/:/usr/share/logstash/pipeline/ docker.elastic.co/logstash/logstash:${VERSION} 
 
 #docker cp ${TEMP_DIR}/ca.crt logstash:/usr/share/logstash/config/ca.crt
 
@@ -139,14 +139,15 @@ echo "lancement de filebeats"
 sudo cp ${TEMPLATE_DIR}/suricata.yml.template ${CONFIG_FILEBEAT_DIR}/suricata.yml 
 sudo sed "s/ELASTIC_PASSWORD/${ELASTIC_PASSWORD}/g" ${TEMPLATE_DIR}/filebeat.yml.template > ${CONFIG_FILEBEAT_DIR}/filebeat.yml
 sudo sed -i 's/\r//g' ${CONFIG_FILEBEAT_DIR}/filebeat.yml 
-sudo chown root.root ${CONFIG_FILEBEAT_DIR}/*.yml 
+sudo chown root:root ${CONFIG_FILEBEAT_DIR}/*.yml 
 sudo chmod go-w ${CONFIG_FILEBEAT_DIR}/*.yml
 
 # d'abord setup
-docker run --rm --user=root --volume='certs:/usr/share/filebeats/config/certs'  --network=elasticsearch --volume="${CONFIG_FILEBEAT_DIR}/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro" --volume="${CONFIG_FILEBEAT_DIR}/filebeat.yml:/usr/share/filebeat/modules.d/suricata.yml:ro" --volume="${LOGS_DIR}:/var/log/suricata"  --env ELASTIC_USERNAME=beats_system --env ELASTIC_PASSWORD=${BEATS_PASSWORD}  docker.elastic.co/beats/filebeat:${VERSION} filebeat setup -e -strict.perms=false -E setup.kibana.host=kibana:5601 -E output.elasticsearch.hosts="https://es01:9200" -E output.elasticsearch.ssl.certificate_authorities=/usr/share/filebeats/config/certs/ca/ca.crt
+docker run --rm --user=root --volume='certs:/usr/share/filebeats/config/certs'  --network=elasticsearch --volume="${CONFIG_FILEBEAT_DIR}/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro" --volume="${CONFIG_FILEBEAT_DIR}/filebeat.yml:/usr/share/filebeat/modules.d/suricata.yml:ro" --volume="${LOGS_DIR}:/var/log/suricata"  --env ELASTIC_USERNAME=beats_system --env ELASTIC_PASSWORD=${BEATS_PASSWORD}  docker.elastic.co/beats/filebeat:${VERSION} filebeat setup -e --strict.perms=false -E setup.kibana.host=kibana:5601 -E output.elasticsearch.hosts="https://es01:9200" -E output.elasticsearch.ssl.certificate_authorities=/usr/share/filebeats/config/certs/ca/ca.crt
 
 # ensuite lancement en scrutation
-docker run --rm --user=root  -d --name filebeat  --volume='certs:/usr/share/filebeats/config/certs'  --network=elasticsearch --volume="${CONFIG_FILEBEAT_DIR}/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro" --volume="${CONFIG_FILEBEAT_DIR}/suricata.yml:/usr/share/filebeat/modules.d/suricata.yml:ro" --volume="${LOGS_DIR}:/var/log/suricata" --env ELASTIC_USERNAME=beats_system --env ELASTIC_PASSWORD=${BEATS_PASSWORD}  docker.elastic.co/beats/filebeat:${VERSION} filebeat -e -strict.perms=false -E setup.kibana.host=kibana:5601 -E output.elasticsearch.hosts="https://es01:9200" -E output.elasticsearch.ssl.certificate_authorities=/usr/share/filebeats/config/certs/ca/ca.crt
+#docker run --rm --user=root  -d --name filebeat  --volume='certs:/usr/share/filebeats/config/certs'  --network=elasticsearch --volume="${CONFIG_FILEBEAT_DIR}/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro" --volume="${CONFIG_FILEBEAT_DIR}/suricata.yml:/usr/share/filebeat/modules.d/suricata.yml:ro" --volume="${LOGS_DIR}:/var/log/suricata" --env ELASTIC_USERNAME=beats_system --env ELASTIC_PASSWORD=${BEATS_PASSWORD}  docker.elastic.co/beats/filebeat:${VERSION} filebeat -e -strict.perms=false -E setup.kibana.host=kibana:5601 -E output.elasticsearch.hosts="https://es01:9200" -E output.elasticsearch.ssl.certificate_authorities=/usr/share/filebeats/config/certs/ca/ca.crt
+docker run --user=root  -d --name filebeat  --volume='certs:/usr/share/filebeats/config/certs'  --network=elasticsearch --volume="${CONFIG_FILEBEAT_DIR}/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro" --volume="${CONFIG_FILEBEAT_DIR}/suricata.yml:/usr/share/filebeat/modules.d/suricata.yml:ro" --volume="${LOGS_DIR}:/var/log/suricata" --env ELASTIC_USERNAME=beats_system --env ELASTIC_PASSWORD=${BEATS_PASSWORD}  docker.elastic.co/beats/filebeat:${VERSION} filebeat -e --strict.perms=false -E setup.kibana.host=kibana:5601 -E output.elasticsearch.hosts="https://es01:9200" -E output.elasticsearch.ssl.certificate_authorities=/usr/share/filebeats/config/certs/ca/ca.crt
 
 # activation du module suricata
 
@@ -158,7 +159,8 @@ if [ ! -f apm.lock ]; then
 ###################################################################
 echo "lancement de zeek" 
 ###################################################################
-    docker run -d --rm  --name zeek  --net=elasticsearch --volumes-from=suricata registry.iutbeziers.fr/bro:4.2.0 /bin/bash -c 'while true; do sleep 100; done'
+#    docker run -d --rm  --name zeek  --net=elasticsearch --volumes-from=suricata registry.iutbeziers.fr/bro:4.2.0 /bin/bash -c 'while true; do sleep 100; done'
+    docker run -d --name zeek  --net=elasticsearch --volumes-from=suricata registry.iutbeziers.fr/bro:4.2.0 /bin/bash -c 'while true; do sleep 100; done'
     docker exec -it zeek   /bin/bash -c 'apt update && apt -y install python3 vim cmake build-essential python3-pip git curl wget libpcap-dev && pip3 install GitPython semantic-version'
 # Optionnel long à compiler
 #docker exec -it zeek   /bin/bash -c 'wget https://github.com/zeek/spicy/releases/download/v1.3.0/spicy_linux_ubuntu20.deb && dpkg -i spicy_linux_ubuntu20.deb'
@@ -166,4 +168,3 @@ echo "lancement de zeek"
 #docker exec -it zeek   /bin/bash -c 'echo "export PATH=/opt/spicy/bin:$PATH" >> /root/.bashrc'
 
 fi
-
