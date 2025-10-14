@@ -124,8 +124,7 @@ echo "lancement de logstash"
 sed "s/ELASTIC_PASSWORD/${ELASTIC_PASSWORD}/g" ${TEMPLATE_DIR}/logstash.conf.template > ${CONFIG_DIR}/pipeline/logstash.conf
 
 sed -i 's/\r//g' ${CONFIG_DIR}/pipeline/logstash.conf
-
-
+chmod 644 ${TEMP_DIR}/ca.crt
 
 #docker run -d --rm --name logstash -e PUID=$(id -u)  -e PGID=$(id -g) --env ELASTIC_USERNAME=logstash_system --env ELASTIC_PASSWORD=${LOGSTASH_PASSWORD}   -e XPACK_MONITORING_ENABLED=false -it --rm --net=elasticsearch  --volume="${LOGS_DIR}:/var/log/suricata" -v${TEMP_DIR}/ca.crt:/usr/share/logstash/config/ca.crt -v ${CONFIG_DIR}/pipeline/:/usr/share/logstash/pipeline/ docker.elastic.co/logstash/logstash:${VERSION} 
 docker run -d --name logstash -e PUID=$(id -u)  -e PGID=$(id -g) --env ELASTIC_USERNAME=logstash_system --env ELASTIC_PASSWORD="${LOGSTASH_PASSWORD}"   -e XPACK_MONITORING_ENABLED=false -it --net=elasticsearch  --volume="${LOGS_DIR}:/var/log/suricata" -v${TEMP_DIR}/ca.crt:/usr/share/logstash/config/ca.crt -v ${CONFIG_DIR}/pipeline/:/usr/share/logstash/pipeline/ docker.elastic.co/logstash/logstash:${VERSION} 

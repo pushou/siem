@@ -154,7 +154,7 @@ echo "${CA_FILE}"
 docker cp es01:/usr/share/elasticsearch/config/certs/ca/ca.crt "${CA_FILE}"
 
 # ES met un peu de temps à être accessible
-echo "Attente ES up...";
+echo "Attente ES up (peut prendre quelques minutes)...";
 export ELASTIC_PASSWORD='changeme'
 until make curlES 2<&1 |grep -q 'You Know, for Search';do sleep 10; done;
 
