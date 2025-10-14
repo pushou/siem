@@ -43,8 +43,8 @@ curl --cacert $CA_FILE -k  -X POST "https://${IP_HOST}:5601/api/fleet/agent_poli
 # update fleet server url 
 curl --cacert $CA_FILE -k  -XPUT "https://${IP_HOST}:5601/api/fleet/settings" --header 'kbn-xsrf: true' --header 'Content-Type: application/json' --data-raw '{"fleet_server_hosts":["https://${IP_HOST}:8220","https://${IP_HOST}:8220"]}' -K-  <<< "--user elastic:$ELASTIC_PASSWORD"
 
-
-FLEET_TOKEN=$(curl --cacert $CA_FILE -k -s -X POST https://${IP_HOST}:5601/api/fleet/service-tokens --header 'kbn-xsrf: true' -K-  <<< "--user elastic:$ELASTIC_PASSWORD"| jq -r .value)
+# Avec la syntaxe -K- qui fonctionne pour vous
+FLEET_TOKEN=$(curl -k --cacert $CA_FILE -X POST "https://${IP_HOST}:5601/api/fleet/service_tokens" -H "kbn-xsrf: true" -H "Content-Type: application/json" -K- <<< "--user elastic:$ELASTIC_PASSWORD" | jq -r .value)
 echo "FLEET_TOKEN ${FLEET_TOKEN}"
 printf "FLEET_TOKEN=%q\n" "${FLEET_TOKEN}" >> "${ENV_FILE}"
 printf "FLEET_TOKEN=%q\n" "${FLEET_TOKEN}" >> "${PASSWORDS_FILE}"
